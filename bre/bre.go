@@ -8,6 +8,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"math"
 	"strconv"
 	"strings"
 )
@@ -182,7 +183,7 @@ func exeAstNodes(ruleName string, actions []string, facts *map[string]string, fi
 	astNode := astNodes[ruleName]
 	rule := astNode.expr
 
-	ruleOk, err := eval(rule, true, true, 0, facts, filters)
+	ruleOk, err := eval(rule, true, facts, filters)
 	if err != nil {
 		panic(err)
 	}
@@ -193,7 +194,7 @@ func exeAstNodes(ruleName string, actions []string, facts *map[string]string, fi
 
 		for _, action := range astNode.actionExpr {
 			//	eval(action, false, true, 0, facts, filters)
-			_, err := eval(action, false, true, 0, facts, filters)
+			_, err := eval(action, false, facts, filters)
 			if err != nil {
 				return err
 			}
@@ -204,11 +205,11 @@ func exeAstNodes(ruleName string, actions []string, facts *map[string]string, fi
 	return nil
 }
 
-func eval(exp ast.Expr, isRule bool, isLeft bool, cnt int, facts *map[string]string, filters *map[string]struct{}) (node string, err error) {
+func eval(exp ast.Expr, isRule bool, facts *map[string]string, filters *map[string]struct{}) (node string, err error) {
 	switch exp := exp.(type) {
 	case *ast.BinaryExpr:
 
-		node, err := evalBinaryExpr(exp, isRule, isLeft, cnt, facts, filters)
+		node, err := evalBinaryExpr(exp, isRule, facts, filters)
 		if err != nil {
 			return "", err
 		}
@@ -225,7 +226,7 @@ func eval(exp ast.Expr, isRule bool, isLeft bool, cnt int, facts *map[string]str
 			return exp.Value, nil
 		}
 	case *ast.ParenExpr:
-		return eval(exp.X, isRule, isLeft, cnt, facts, filters)
+		return eval(exp.X, isRule, facts, filters)
 	case *ast.Ident:
 
 		// Assignment
@@ -249,19 +250,19 @@ func eval(exp ast.Expr, isRule bool, isLeft bool, cnt int, facts *map[string]str
 	return "", nil
 }
 
-func evalBinaryExpr(exp *ast.BinaryExpr, isRule bool, isLeft bool, cnt int, facts *map[string]string, filters *map[string]struct{}) (node string, err error) {
+func evalBinaryExpr(exp *ast.BinaryExpr, isRule bool, facts *map[string]string, filters *map[string]struct{}) (node string, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("error in evalBinaryExprn : %s", r)
 		}
 	}()
 
-	left, err := eval(exp.X, isRule, true, cnt+1, facts, filters)
+	left, err := eval(exp.X, isRule, facts, filters)
 	if err != nil {
 		return "", err
 	}
 
-	right, err := eval(exp.Y, isRule, false, cnt+1, facts, filters)
+	right, err := eval(exp.Y, isRule, facts, filters)
 	if err != nil {
 		return "", err
 	}
@@ -274,7 +275,8 @@ func evalBinaryExpr(exp *ast.BinaryExpr, isRule bool, isLeft bool, cnt int, fact
 		}
 
 		ans := leftFloat + rightFloat
-		return fmt.Sprintf("%.2f", ans), nil
+
+		return str(ans), nil
 
 	case token.SUB:
 		leftFloat, rightFloat, err := ToFloat64(left, right)
@@ -284,7 +286,7 @@ func evalBinaryExpr(exp *ast.BinaryExpr, isRule bool, isLeft bool, cnt int, fact
 
 		ans := leftFloat - rightFloat
 
-		return fmt.Sprintf("%.2f", ans), nil
+		return str(ans), nil
 
 	case token.MUL:
 		leftFloat, rightFloat, err := ToFloat64(left, right)
@@ -294,7 +296,7 @@ func evalBinaryExpr(exp *ast.BinaryExpr, isRule bool, isLeft bool, cnt int, fact
 
 		ans := leftFloat * rightFloat
 
-		return fmt.Sprintf("%.2f", ans), nil
+		return str(ans), nil
 
 	case token.QUO:
 		leftFloat, rightFloat, err := ToFloat64(left, right)
@@ -304,7 +306,7 @@ func evalBinaryExpr(exp *ast.BinaryExpr, isRule bool, isLeft bool, cnt int, fact
 
 		ans := leftFloat / rightFloat
 
-		return fmt.Sprintf("%.2f", ans), nil
+		return str(ans), nil
 
 	case token.LAND:
 		if left == "true" && right == "true" {
@@ -398,4 +400,14 @@ func ToFloat64(left, right string) (float64, float64, error) {
 	}
 
 	return floatLeft, floatRight, nil
+}
+
+func str(nbr float64) string {
+
+	if math.Mod(nbr, 1.0) == 0 {
+		return fmt.Sprintf("%v", nbr)
+	} else {
+		return fmt.Sprintf("%.2f", nbr)
+	}
+
 }

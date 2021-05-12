@@ -58,48 +58,10 @@ func chkOverLap(pkgCode, site, cat, validFrom, validTo string, collection *mongo
 
 	filter := bson.M{"site": site, "cat": cat}
 
-	// filter := bson.M{
-	// 	"$and": []bson.M{
-	// 		{"site": site},
-	// 		{"cat": cat},
-	// 	"$or": []bson.M{
-	// 		// Embded
-	// 		{"validfrom": bson.M{"$gte": validFrom}},
-	// 		{ "validto": bson.M{"$lte": validTo}},
-	// 	},"$or": []bson.M{
-	// 		// new from between from and to
-	// 		{"validfrom": bson.M{"$lte": validFrom}},
-	// 		{"validto": bson.M{"$gte": validFrom}},
-	// 	},"$or": []bson.M{
-	// 		// new to between from to
-	// 		{"validFrom": bson.M{"$lte": validTo}},
-	// 		{ "validto": bson.M{"$gte": validTo}},
-	// 	},
-	// }}
-
-	//var result structs.BrePkg
-
-	//  filter := bson.M{
-	//  		{"site": site},
-	//  		{"cat": cat},
-	// 		 "$or": []bson.M{
-	// 			{"site": site},
-	// 			{"cat": cat},
-
-	//  	},
-
-	//Create a handle to the respective collection in the database.
-	//Perform FindOne operation & validate against the error.
-	//err := collection.FindOne(context.TODO(), filter).Decode(&result)
 	cur, findError := collection.Find(context.TODO(), filter)
 	if findError != nil {
 		return findError
 	}
-
-	// if result.PkgCode != "" && result.PkgCode != pkgCode {
-	// 	//	return fmt.Errorf("Package dates conflict with Package %s - From %s to %s", result.PkgCode, result.ValidFrom, result.ValidTo)
-	// 	return nil
-	// }
 
 	for cur.Next(context.TODO()) {
 		t := structs.BrePkg{}
@@ -122,7 +84,6 @@ func chkOverLap(pkgCode, site, cat, validFrom, validTo string, collection *mongo
 			}
 		}
 
-		//brePkgs = append(brePkgs, t)
 	}
 	// once exhausted, close the cursor
 	cur.Close(context.TODO())

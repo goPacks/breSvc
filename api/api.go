@@ -87,8 +87,6 @@ func exeBrePkg(w http.ResponseWriter, r *http.Request, user *structs.User) {
 
 	params := mux.Vars(r)
 
-	// Save to Database
-
 	// Read Message Body
 	reqBody, err := ioutil.ReadAll(r.Body)
 
@@ -244,7 +242,7 @@ func logIn(w http.ResponseWriter, r *http.Request) {
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		w.WriteHeader(http.StatusUnprocessableEntity)
-		w.Write([]byte("422 -Please supply " + "course information " + "in JSON format"))
+		w.Write([]byte("422 -Please supply " + "login information " + "in JSON format"))
 		return
 	}
 
@@ -274,6 +272,7 @@ func logIn(w http.ResponseWriter, r *http.Request) {
 	jwt := jwt.MakeJwt(JwtExpiryTime, jwt.PayLoad{UserId: user.UserId, Sbu: userData.Sbu})
 	w.WriteHeader(http.StatusAccepted)
 	w.Write([]byte(fmt.Sprintf("{\"jwt\":\"%s\"}", jwt)))
+
 }
 
 // Login Authentication

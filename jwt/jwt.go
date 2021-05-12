@@ -7,6 +7,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -30,7 +31,7 @@ var (
 // if the expiry exceeds the 5 mins, the token becomes invalid
 type PayLoad struct {
 	Expiry    int64
-	UserId     string
+	UserId    string
 	Name      string
 	Sbu       string
 	Email     string
@@ -87,7 +88,12 @@ func MakeJwt(expiryTime time.Duration, payload PayLoad) string {
 	encodedPayload, _ := json.Marshal(payload)
 	signatureValue := header64 + "." + base64Encode(string(encodedPayload))
 
-	return signatureValue + "." + makeHash(signatureValue, SecretKey)
+	strToken := signatureValue + "." + makeHash(signatureValue, SecretKey)
+
+	hexToken := hex.EncodeToString([]byte(strToken))
+
+	return hexToken
+
 }
 
 // Checks if JWT provided is valid
@@ -95,11 +101,21 @@ func MakeJwt(expiryTime time.Duration, payload PayLoad) string {
 // 2. Checks if token has expired
 // 3. Checks if signature is valid
 // Returns the clear payload and an error if validation fails
-func ValidateJwt(jwt string, secretKey string) (PayLoad, error) {
+func ValidateJwt(jwtHex string, secretKey string) (payLoadReturn PayLoad, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("error in Validate JWT : %s", r)
+		}
+	}()
 
 	var payLoad PayLoad
 
-	token := strings.Split(jwt, ".")
+	jwt, err := hex.DecodeString(jwtHex)
+	if err != nil {
+		panic(err)
+	}
+
+	token := strings.Split(string(jwt), ".")
 
 	// check if the jwt token contains
 	// header, payload and token
