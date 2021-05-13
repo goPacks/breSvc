@@ -1,3 +1,7 @@
+// This package provides the BRE functionality.
+// Rules are sotred in BRE containers, I call brePkg
+//
+
 package bre
 
 import (
@@ -8,79 +12,68 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-
 	"math"
 	"strconv"
 	"strings"
 )
 
+// Collection cache of all brePkgs
 var brePkgs []*structs.BrePkg
 
-func SetBrePkg(pBrePkgReq []byte, sbu *string) (success bool, err error) {
+// Function saves a brePkg to data storage. Before saving it compiles the package to check for syntax errors and cachses the compiled AST nodes
+func SaveBrePkg(pBrePkgReq []byte, sbu *string) (success bool, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("Compile Error: %s", r)
 		}
 	}()
 
-	// Zero Byte struct for MAP with Key and no Value
-	//var empty struct{}
-	var brePkgReq structs.BrePkgReq
-	//var brePkg structs.BrePkg
+	var brePkgReq structs.BrePkgReq // For data storage
+	var brePkg structs.BrePkg       // AST Nodes
 
-	// Unmarshall
-	//	if err := json.Unmarshal(pBrePkgReq, &brePkgReq); err != nil {
-	//		panic(err)
-	//	}
-
-	// Create AST nodes
-	// compileErr := compile(&brePkgReq, &brePkg)
-	// if compileErr != nil {
-	// 	panic(compileErr)
-	// }
-
-	// Save Dimensions to DB
-
-	//	brePkg.Filters = make(map[string]struct{})
-	_, saveErr := mongosvc.UpsertBre(&brePkgReq, sbu)
-	if saveErr != nil {
-		panic(saveErr)
+	// Unmarshall for data storage
+	if err := json.Unmarshal(pBrePkgReq, &brePkgReq); err != nil {
+		panic(err)
 	}
 
-	//brePkgs = append(brePkgs, &brePkg)
+	// Compile and check for syntax error
+	compileErr := compile(&brePkgReq, &brePkg)
+	if compileErr != nil {
+		panic(compileErr)
+	}
 
+	// Cache the package for later use
+	brePkgs = append(brePkgs, &brePkg)
+
+	// Make key
 	pkgId := fmt.Sprintf("%s.%s.%s", brePkgReq.Site, brePkgReq.Cat, brePkgReq.PkgCode)
 
+	// Delete all recorded dimensions for the key
 	delErr := mongosvc.DelDim(pkgId, sbu)
 	if delErr != nil {
 		panic(delErr)
 	}
 
-	for _, v := range brePkgReq.Filters {
-		//	_, saveErr := mongosvc.InsDim(&structs.Dim{Data: v}, brePkgReq.Site, brePkgReq.Cat, brePkgReq.PkgCode, user)
-
+	// Insert Individual Dimensions
+	for _, v := range brePkgReq.Dimensions {
 		_, saveErr := mongosvc.InsDim(pkgId, v, sbu)
 		if saveErr != nil {
 			panic(saveErr)
 		}
 	}
 
-	// Setp the dimensions
-	// for _, v := range brePkgReq.Filters {
-	// 	brePkg.Filters[v] = empty
-	// }
+	brePkgReq.Dimensions = nil
 
-	// brePkgs = append(brePkgs, &brePkg)
-
-	// Save to Database
-	// _, saveErr := mongosvc.UpsertBre(&brePkgReq, user)
-	// if saveErr != nil {
-	// 	panic(saveErr)
-	// }
+	// Save to databsae
+	_, saveErr := mongosvc.UpsertBre(&brePkgReq, sbu)
+	if saveErr != nil {
+		panic(saveErr)
+	}
 
 	return true, nil
 }
 
+// Function extracts brePks from data stroage, compiles cachses the compiled AST nodes
 func LoadBrePkg(pkgCode string, sbu *string) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -96,26 +89,19 @@ func LoadBrePkg(pkgCode string, sbu *string) (err error) {
 
 	var brePkg structs.BrePkg
 
+	// Compile and check for syntax errors
 	compileErr := compile(&brePkgReq, &brePkg)
 	if compileErr != nil {
 		panic(compileErr)
 	}
 
+	// Cache the package for later use
 	brePkgs = append(brePkgs, &brePkg)
-
-	// brePkgStr, err := json.Marshal(brePkg)
-	// if err != nil {
-	// 	panic(err)
-	// }
-
-	// _, err = SetBrePkg(brePkgStr, sbu)
-	// if err != nil {
-	// 	panic(err)
-	// }
 
 	return nil
 }
 
+// Function to check if dimension exists in storage
 func chkDimExist(pkgCode *string, dim *string, sbu *string) (exist bool, err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -123,20 +109,21 @@ func chkDimExist(pkgCode *string, dim *string, sbu *string) (exist bool, err err
 		}
 	}()
 
+	// Extract from storage
 	dimData, err := mongosvc.GetDim(pkgCode, dim, sbu)
 	if err != nil {
 		panic(err)
 	}
 
+	// Reutunr true if exist
 	if dimData.Data != "" {
 		return true, nil
 	} else {
 		return false, nil
 	}
-
 }
 
-// With the facts provide, iterate through all the rules and corresponding actions in the ruleset.
+// With the facts provided, iterate through all the rules and corresponding actions in the ruleset.
 func ExeBrePkg(pkgCode string, factBody []byte, sbu *string) (results map[string]string, err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -146,6 +133,7 @@ func ExeBrePkg(pkgCode string, factBody []byte, sbu *string) (results map[string
 
 	// Setup facts collection to store existing table, modify and add new facts
 	var facts map[string]string
+	var pkgBre *structs.BrePkg
 
 	// Import facts received into facts collection
 	if err := json.Unmarshal(factBody, &facts); err != nil {
@@ -153,12 +141,11 @@ func ExeBrePkg(pkgCode string, factBody []byte, sbu *string) (results map[string
 	}
 
 	pkgInMemory := false
-	var pkgBre *structs.BrePkg
 
 	// Start trace
 	facts["trace"] = ""
 
-	// Check if package exist in memeory
+	// Check if package exist in memory
 	for _, pkg := range brePkgs {
 
 		if pkg.PkgCode == pkgCode {
@@ -181,16 +168,6 @@ func ExeBrePkg(pkgCode string, factBody []byte, sbu *string) (results map[string
 				pkgInMemory = true
 				break
 
-				// 	for _, v := range pkg.AstNodes {
-
-				// 		err := exeAstNodes(v.Name, v, &facts, &pkg.Filters)
-				// 		if err != nil {
-				// 			panic(err)
-				// 		}
-				// 	}
-
-				// 	return facts, nil
-				// }
 			}
 
 		}
@@ -200,12 +177,9 @@ func ExeBrePkg(pkgCode string, factBody []byte, sbu *string) (results map[string
 	if pkgInMemory == false {
 		return facts, fmt.Errorf("Bre Package %s not stored", pkgCode)
 	}
-	// -----------------------------------
 
-	//---------------------
+	// Traverse and evluate all the nodes
 	for _, v := range pkgBre.AstNodes {
-		//	pkgId := fmt.Sprintf("%s.%s.%s", pkgBre.Site, pkgBre.Cat, pkgBre.PkgCode)
-
 		err := exeAstNodes(pkgBre.PkgCode, v.Name, v, &facts, sbu)
 		if err != nil {
 			panic(err)
@@ -216,25 +190,6 @@ func ExeBrePkg(pkgCode string, factBody []byte, sbu *string) (results map[string
 
 }
 
-// if brePackage.PkgCode != pkgCode {
-
-// 	//	log.Println("Loading pack")
-
-// 	if err := LoadBrePkg(pkgCode, user); err != nil {
-// 		panic(err)
-// 	}
-
-// }
-
-// //Traverse through all rules in the ruleset
-// for _, v := range brePackage.RuleSet {
-// 	err := exeAstNodes(v.RuleName, v.Actions, &facts, &filters)
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// }
-
-//}
 // Parse the BRE package into AST nodes
 func compile(brePkgReq *structs.BrePkgReq, brePkg *structs.BrePkg) (err error) {
 
@@ -246,10 +201,8 @@ func compile(brePkgReq *structs.BrePkgReq, brePkg *structs.BrePkg) (err error) {
 		}
 	}()
 
-	// Create dictionary to store the AST nodes
-
+	// Create ID
 	brePkg.PkgCode = brePkgReq.Site + "." + brePkgReq.Cat + "." + brePkgReq.PkgCode
-
 	brePkg.Cat = brePkgReq.Cat
 	brePkg.Site = brePkgReq.Site
 
@@ -263,9 +216,9 @@ func compile(brePkgReq *structs.BrePkgReq, brePkg *structs.BrePkg) (err error) {
 			panic(fmt.Sprintf("%s - %s", rule.Rule, ruleErr))
 		}
 
+		// For Debugging purpose if needed
 		// spew.Dump(ruleExpr)
 
-		//	brePkg.AstNodes[rule.RuleName] = &structs.AstNode{Name: rule.RuleName, Expr: ruleExpr}
 		brePkg.AstNodes = append(brePkg.AstNodes, &structs.AstNode{Name: rule.RuleName, Expr: ruleExpr})
 
 		for _, action := range rule.Actions {
@@ -274,33 +227,14 @@ func compile(brePkgReq *structs.BrePkgReq, brePkg *structs.BrePkg) (err error) {
 
 			actionExpr, actionErr := parser.ParseExpr(cmd)
 
-			// For Debugging Purpose
+			// For Debugging purpose if needed
 			//	spew.Dump(actionExpr)
 
 			if actionErr != nil {
 				panic(fmt.Sprintf("%s - %s", action, actionErr))
 			}
 
-			//astNodes[rule.RuleName].actionExpr = append(astNodes[rule.RuleName].actionExpr, actionExpr)
-
-			//brePkg.AstNodes[rule.RuleName].ActionExpr = append(brePkg.AstNodes[rule.RuleName].ActionExpr, actionExpr)
 			brePkg.AstNodes[len(brePkg.AstNodes)-1].ActionExpr = append(brePkg.AstNodes[len(brePkg.AstNodes)-1].ActionExpr, actionExpr)
-
-			// json_data2, err := json.Marshal(actionExpr)
-
-			// if err != nil {
-			// 	log.Fatal(err)
-			// }
-
-			// fmt.Println(string(json_data2))
-
-			// var astExpr ast.Expr
-
-			// err = json.Unmarshal(json_data2, &astExpr)
-
-			// if err != nil {
-			// 	fmt.Printf("%s", err)
-			// }
 
 		}
 
@@ -309,6 +243,7 @@ func compile(brePkgReq *structs.BrePkgReq, brePkg *structs.BrePkg) (err error) {
 	return nil
 }
 
+// Traverse through all nodes and execute
 func exeAstNodes(pkgId string, ruleName string, astNode *structs.AstNode, facts *map[string]string, sbu *string) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -316,7 +251,6 @@ func exeAstNodes(pkgId string, ruleName string, astNode *structs.AstNode, facts 
 		}
 	}()
 
-	//astNode := astNodes[ruleName]
 	rule := astNode.Expr
 
 	ruleOk, err := eval(&pkgId, rule, true, facts, sbu)
@@ -386,6 +320,7 @@ func eval(pkgId *string, exp ast.Expr, isRule bool, facts *map[string]string, sb
 	return "", nil
 }
 
+// Evaluate Binary Expression
 func evalBinaryExpr(pkgId *string, exp *ast.BinaryExpr, isRule bool, facts *map[string]string, sbu *string) (node string, err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -405,7 +340,7 @@ func evalBinaryExpr(pkgId *string, exp *ast.BinaryExpr, isRule bool, facts *map[
 
 	switch exp.Op {
 	case token.ADD:
-		leftFloat, rightFloat, err := ToFloat64(left, right)
+		leftFloat, rightFloat, err := toFloat64(left, right)
 		if err != nil {
 			panic(err)
 		}
@@ -415,7 +350,7 @@ func evalBinaryExpr(pkgId *string, exp *ast.BinaryExpr, isRule bool, facts *map[
 		return str(ans), nil
 
 	case token.SUB:
-		leftFloat, rightFloat, err := ToFloat64(left, right)
+		leftFloat, rightFloat, err := toFloat64(left, right)
 		if err != nil {
 			panic(err)
 		}
@@ -425,7 +360,7 @@ func evalBinaryExpr(pkgId *string, exp *ast.BinaryExpr, isRule bool, facts *map[
 		return str(ans), nil
 
 	case token.MUL:
-		leftFloat, rightFloat, err := ToFloat64(left, right)
+		leftFloat, rightFloat, err := toFloat64(left, right)
 		if err != nil {
 			panic(err)
 		}
@@ -435,7 +370,7 @@ func evalBinaryExpr(pkgId *string, exp *ast.BinaryExpr, isRule bool, facts *map[
 		return str(ans), nil
 
 	case token.QUO:
-		leftFloat, rightFloat, err := ToFloat64(left, right)
+		leftFloat, rightFloat, err := toFloat64(left, right)
 		if err != nil {
 			panic(err)
 		}
@@ -509,12 +444,6 @@ func evalBinaryExpr(pkgId *string, exp *ast.BinaryExpr, isRule bool, facts *map[
 					} else {
 						return "false", nil
 					}
-					// _, x := (*filters)[key]
-					// if x {
-					// 	return "true", nil
-					// } else {
-					// 	return "false", nil
-					// }
 
 				} else {
 					return "false", nil
@@ -541,7 +470,7 @@ func evalBinaryExpr(pkgId *string, exp *ast.BinaryExpr, isRule bool, facts *map[
 	return "", nil
 }
 
-func ToFloat64(left, right string) (float64, float64, error) {
+func toFloat64(left, right string) (float64, float64, error) {
 	floatLeft, err := strconv.ParseFloat(left, 64)
 	if err != nil {
 		return 0, 0, fmt.Errorf("Unable to convert %v to float, %s", left, err)

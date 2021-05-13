@@ -18,18 +18,17 @@ type BrePkg struct {
 	ValidFrom string `json:"validFrom"`
 	ValidTo   string `json:"validTo"`
 	AstNodes  []*AstNode
-	Filters   map[string]struct{} `json:"filters"`
 }
 
 type BrePkgReq struct {
-	PkgCode   string    `json:"pkgCode"`
-	Cat       string    `json:"cat"`
-	Site      string    `json:"site"`
-	User      string    `json:"user"`
-	ValidFrom string    `json:"validFrom"`
-	ValidTo   string    `json:"validTo"`
-	RuleSet   []ruleSet `json:"ruleSet"`
-	Filters   []string  `json:"filters"`
+	PkgCode    string    `json:"pkgCode"`
+	Cat        string    `json:"cat"`
+	Site       string    `json:"site"`
+	User       string    `json:"user"`
+	ValidFrom  string    `json:"validFrom"`
+	ValidTo    string    `json:"validTo"`
+	RuleSet    []ruleSet `json:"ruleSet"`
+	Dimensions []string  `json:"dimensions"`
 }
 
 type ruleSet struct {
@@ -52,6 +51,6 @@ type User struct {
 
 // Database table user row struct
 type Dim struct {
-	PkgId string 
+	PkgId string
 	Data  string
 }

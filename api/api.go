@@ -33,7 +33,7 @@ func HandleReq() {
 	muxRouter.HandleFunc(apiVer+"regUser", regUser).Methods("POST")
 
 	// Set Routes
-	muxRouter.Handle(apiVer+"brePkg", chkJwt(setBrePkg)).Methods("PUT")
+	muxRouter.Handle(apiVer+"brePkg", chkJwt(saveBrePkg)).Methods("PUT")
 	muxRouter.Handle(apiVer+"brePkg/{pkgCode}", chkJwt(exeBrePkg)).Methods("POST")
 	muxRouter.Handle(apiVer+"brePkg", chkJwt(getBrePkgs)).Methods("GET")
 	muxRouter.Handle(apiVer+"brePkg/{pkgCode}", chkJwt(getBrePkg)).Methods("GET")
@@ -42,6 +42,7 @@ func HandleReq() {
 
 	fmt.Println("Waiting on Port :" + Port)
 
+	// Use HTTP for development. Move to HTTPS on production when valid certificates are avaiable
 	// err := http.ListenAndServeTLS(":"+Port, "cert/certificate.crt", "cert/privateKey.key", muxRouter)
 	err := http.ListenAndServe(":"+Port, muxRouter)
 	if err != nil {
@@ -51,7 +52,7 @@ func HandleReq() {
 }
 
 // Intitializes the BRE package with rules and corresponding actions
-func setBrePkg(w http.ResponseWriter, r *http.Request, sbu *string) {
+func saveBrePkg(w http.ResponseWriter, r *http.Request, sbu *string) {
 
 	// Read Message Body
 	reqBody, err := ioutil.ReadAll(r.Body)
@@ -64,7 +65,7 @@ func setBrePkg(w http.ResponseWriter, r *http.Request, sbu *string) {
 	}
 
 	// Send Body to BRE
-	success, err := bre.SetBrePkg(reqBody, sbu)
+	success, err := bre.SaveBrePkg(reqBody, sbu)
 	if err != nil {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		w.Write([]byte(err.Error()))
@@ -75,7 +76,7 @@ func setBrePkg(w http.ResponseWriter, r *http.Request, sbu *string) {
 
 		// Return Respose
 		w.WriteHeader(http.StatusAccepted)
-		w.Write([]byte("BRE Package Accepted"))
+		w.Write([]byte("BRE Package Saved"))
 	} else {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		w.Write([]byte("Unable to compile"))
@@ -83,7 +84,7 @@ func setBrePkg(w http.ResponseWriter, r *http.Request, sbu *string) {
 }
 
 // Sends current facts to the rules engines for processing and returns the results
-func exeBrePkg(w http.ResponseWriter, r *http.Request, sbu  *string) {
+func exeBrePkg(w http.ResponseWriter, r *http.Request, sbu *string) {
 
 	params := mux.Vars(r)
 

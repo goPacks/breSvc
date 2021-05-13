@@ -43,7 +43,7 @@ func TestParallel(t *testing.T) {
 
 	t.Run("group", func(t *testing.T) {
 
-		for i := 1; i <= 100; i++ {
+		for i := 1; i <= 1000; i++ {
 			t.Run(fmt.Sprintf("Test%d", i), TestExe1)
 		}
 
