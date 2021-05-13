@@ -30,6 +30,7 @@ const (
 	DB               = "breSvc"
 	BREPKG           = "brePkg"
 	USER             = "user"
+	DIM              = "dim"
 )
 
 //GetMongoClient - Return mongodb connection to work with
@@ -64,7 +65,7 @@ func chkOverLap(pkgCode, site, cat, validFrom, validTo string, collection *mongo
 	}
 
 	for cur.Next(context.TODO()) {
-		t := structs.BrePkg{}
+		t := structs.BrePkgReq{}
 		err := cur.Decode(&t)
 		if err != nil {
 			return err
@@ -89,10 +90,9 @@ func chkOverLap(pkgCode, site, cat, validFrom, validTo string, collection *mongo
 	cur.Close(context.TODO())
 
 	return nil
-
 }
 
-func Upsert(brePkg structs.BrePkg, user *structs.User) (bson.M, error) {
+func UpsertBre(brePkg *structs.BrePkgReq, sbu *string) (bson.M, error) {
 
 	// 1) Create the context
 	exp := 120 * time.Second
@@ -104,7 +104,7 @@ func Upsert(brePkg structs.BrePkg, user *structs.User) (bson.M, error) {
 		return nil, err
 	}
 
-	colName := user.Sbu + "." + BREPKG
+	colName := *sbu + "." + BREPKG
 
 	collection := client.Database(DB).Collection(colName)
 
@@ -142,6 +142,111 @@ func Upsert(brePkg structs.BrePkg, user *structs.User) (bson.M, error) {
 	return doc, decodeErr
 }
 
+// func UpsertDim(dim *structs.Dim, site string, cat string, pkgCode string, user *structs.User) (bson.M, error) {
+
+// 	// 1) Create the context
+// 	exp := 120 * time.Second
+// 	ctx, cancel := context.WithTimeout(context.Background(), exp)
+// 	defer cancel()
+
+// 	client, err := getMongo()
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	colName := user.Sbu + "." + DIM
+
+// 	collection := client.Database(DB).Collection(colName)
+
+// 	// 5) Create the search filter
+// 	//filter := bson.M{"PkgId": dim.PkgCode, "Data" : dim.Data}
+// 	// 5) Create the search filter
+// 	//filter := bson.M{"PkgId": dim.PkgId}
+// 	filter := bson.M{"PkgId": fmt.Sprintf("%s.%s.%s", site, cat, pkgCode)}
+
+// 	//filter := bson.M{}
+// 	// 6) Create the update
+// 	update := bson.M{
+// 		"$set": dim,
+// 	}
+
+// 	// 7) Create an instance of an options and set the desired options
+// 	upsert := true
+// 	after := options.After
+// 	opt := options.FindOneAndUpdateOptions{
+// 		ReturnDocument: &after,
+// 		Upsert:         &upsert,
+// 	}
+
+// 	// 8) Find one result and update it
+// 	result := collection.FindOneAndUpdate(ctx, filter, update, &opt)
+// 	if result.Err() != nil {
+// 		return nil, result.Err()
+// 	}
+
+// 	// 9) Decode the result
+// 	doc := bson.M{}
+// 	decodeErr := result.Decode(&doc)
+
+// 	return doc, decodeErr
+// }
+
+func InsDim(pkgId string, data string, sbu *string) (*mongo.InsertOneResult, error) {
+
+	// 1) Create the context
+	exp := 120 * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), exp)
+	defer cancel()
+
+	client, err := getMongo()
+	if err != nil {
+		return nil, err
+	}
+
+	colName := *sbu + "." + DIM
+
+	collection := client.Database(DB).Collection(colName)
+
+	dim := &structs.Dim{PkgId: pkgId, Data: data}
+
+	//	_, saveErr := mongosvc.InsDim(&structs.Dim{Data: v}, brePkgReq.Site, brePkgReq.Cat, brePkgReq.PkgCode, user)
+
+	// 5) Create the search filter
+	//filter := bson.M{"PkgId": dim.PkgCode, "Data" : dim.Data}
+	// 5) Create the search filter
+	//filter := bson.M{"PkgId": dim.PkgId}
+	//filter := bson.M{"PkgId": fmt.Sprintf("%s.%s.%s", site, cat, pkgCode)}
+
+	//filter := bson.M{}
+	// 6) Create the update
+	// row := bson.M{
+	// 	"$set": dim,
+	// }
+
+	result, err := collection.InsertOne(ctx, dim)
+	if err != nil {
+		return nil, err
+	}
+
+	// 7) Create an instance of an options and set the desired options
+	// upsert := true
+	// after := options.After
+	// opt := options.FindOneAndUpdateOptions{
+	// 	ReturnDocument: &after,
+	// 	Upsert:         &upsert,
+	// }
+
+	// 8) Find one result and update it
+	// result := collection.FindOneAndUpdate(ctx, filter, update, &opt)
+	// if result.Err() != nil {
+	// 	return nil, result.Err()
+	// }
+
+	// 9) Decode the result
+
+	return result, nil
+}
+
 // func Get(pkgCode string) (structs.BrePkg, error) {
 
 // 	result := structs.BrePkg{}
@@ -165,9 +270,9 @@ func Upsert(brePkg structs.BrePkg, user *structs.User) (bson.M, error) {
 // 	return result, nil
 // }
 
-func GetBrePkg(pkgCode string, user *structs.User) (structs.BrePkg, error) {
+func GetBrePkg(pkgCode string, sbu *string) (structs.BrePkgReq, error) {
 
-	var result structs.BrePkg
+	var result structs.BrePkgReq
 
 	//Define filter query for fetching specific document from collection
 	filter := bson.D{primitive.E{Key: "PkgId", Value: pkgCode}}
@@ -178,7 +283,7 @@ func GetBrePkg(pkgCode string, user *structs.User) (structs.BrePkg, error) {
 		return result, err
 	}
 
-	colName := user.Sbu + "." + BREPKG
+	colName := *sbu + "." + BREPKG
 	//Create a handle to the respective collection in the database.
 	collection := client.Database(DB).Collection(colName)
 	//Perform FindOne operation & validate against the error.
@@ -190,7 +295,7 @@ func GetBrePkg(pkgCode string, user *structs.User) (structs.BrePkg, error) {
 	return result, nil
 }
 
-func Del(pkgCode string, user *structs.User) error {
+func Del(pkgCode string, sbu *string) error {
 	//Define filter query for fetching specific document from collection
 	filter := bson.D{primitive.E{Key: "PkgId", Value: pkgCode}}
 	//Get MongoDB connection using connectionhelper.
@@ -199,7 +304,7 @@ func Del(pkgCode string, user *structs.User) error {
 		return err
 	}
 
-	colName := user.Sbu + "." + BREPKG
+	colName := *sbu + "." + BREPKG
 	//Create a handle to the respective collection in the database.
 	collection := client.Database(DB).Collection(colName)
 	//Perform DeleteOne operation & validate against the error.
@@ -211,14 +316,35 @@ func Del(pkgCode string, user *structs.User) error {
 	return nil
 }
 
-func DelAll(user *structs.User) error {
+func DelDim(pkgId string, sbu *string) error {
+	//Define filter query for fetching specific document from collection
+	filter := bson.D{primitive.E{Key: "pkgid", Value: pkgId}}
 	//Get MongoDB connection using connectionhelper.
 	client, err := getMongo()
 	if err != nil {
 		return err
 	}
 
-	colName := user.Sbu + "." + BREPKG
+	colName := *sbu + "." + DIM
+	//Create a handle to the respective collection in the database.
+	collection := client.Database(DB).Collection(colName)
+	//Perform DeleteOne operation & validate against the error.
+	_, err = collection.DeleteMany(context.TODO(), filter)
+	if err != nil {
+		return err
+	}
+	//Return success without any error.
+	return nil
+}
+
+func DelAll(sbu *string) error {
+	//Get MongoDB connection using connectionhelper.
+	client, err := getMongo()
+	if err != nil {
+		return err
+	}
+
+	colName := *sbu + "." + BREPKG
 	//Create a handle to the respective collection in the database.
 	collection := client.Database(DB).Collection(colName)
 	//Perform DeleteOne operation & validate against the error.
@@ -231,7 +357,7 @@ func DelAll(user *structs.User) error {
 	return nil
 }
 
-func GetAll(user *structs.User) ([]structs.BrePkg, error) {
+func GetAll(sbu *string) ([]structs.BrePkg, error) {
 	//Define filter query for fetching specific document from collection
 	filter := bson.D{{}} //bson.D{{}} specifies 'all documents'
 	brePkgs := []structs.BrePkg{}
@@ -241,7 +367,7 @@ func GetAll(user *structs.User) ([]structs.BrePkg, error) {
 		return brePkgs, err
 	}
 
-	colName := user.Sbu + "." + BREPKG
+	colName := *sbu + "." + BREPKG
 	//Create a handle to the respective collection in the database.
 	collection := client.Database(DB).Collection(colName)
 	//Perform Find operation & validate against the error.
@@ -287,6 +413,35 @@ func GetUser(userId string) (structs.User, error) {
 		return result, err
 	}
 	//Return result without any error.
+	return result, nil
+}
+
+func GetDim(pkgId *string, dim *string, sbu *string) (structs.Dim, error) {
+
+	//Define filter query for fetching specific document from collection
+	//	filter := bson.D{primitive.E{Key: "pkgid", Value: pkgId}}
+	filter := bson.M{"pkgid": pkgId, "data": dim}
+
+	var result structs.Dim
+
+	//Get MongoDB connection using connectionhelper.
+	client, err := getMongo()
+	if err != nil {
+		return result, err
+	}
+
+	colName := *sbu + "." + DIM
+
+	//Create a handle to the respective collection in the database.
+	collection := client.Database(DB).Collection(colName)
+	//Perform FindOne operation & validate against the error.
+	err = collection.FindOne(context.TODO(), filter).Decode(&result)
+	if err != nil {
+
+		return result, err
+	}
+	//Return result without any error.
+
 	return result, nil
 }
 

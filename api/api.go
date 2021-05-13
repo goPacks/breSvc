@@ -51,7 +51,7 @@ func HandleReq() {
 }
 
 // Intitializes the BRE package with rules and corresponding actions
-func setBrePkg(w http.ResponseWriter, r *http.Request, user *structs.User) {
+func setBrePkg(w http.ResponseWriter, r *http.Request, sbu *string) {
 
 	// Read Message Body
 	reqBody, err := ioutil.ReadAll(r.Body)
@@ -64,7 +64,7 @@ func setBrePkg(w http.ResponseWriter, r *http.Request, user *structs.User) {
 	}
 
 	// Send Body to BRE
-	success, err := bre.SetBrePkg(reqBody, user)
+	success, err := bre.SetBrePkg(reqBody, sbu)
 	if err != nil {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		w.Write([]byte(err.Error()))
@@ -83,7 +83,7 @@ func setBrePkg(w http.ResponseWriter, r *http.Request, user *structs.User) {
 }
 
 // Sends current facts to the rules engines for processing and returns the results
-func exeBrePkg(w http.ResponseWriter, r *http.Request, user *structs.User) {
+func exeBrePkg(w http.ResponseWriter, r *http.Request, sbu  *string) {
 
 	params := mux.Vars(r)
 
@@ -98,7 +98,7 @@ func exeBrePkg(w http.ResponseWriter, r *http.Request, user *structs.User) {
 	}
 
 	// Send Body to BRE to Excute
-	facts, err := bre.ExeBrePkg(params["pkgCode"], reqBody, user)
+	facts, err := bre.ExeBrePkg(params["pkgCode"], reqBody, sbu)
 	if err != nil {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		w.Write([]byte(err.Error()))
@@ -119,10 +119,10 @@ func exeBrePkg(w http.ResponseWriter, r *http.Request, user *structs.User) {
 }
 
 // Sends current facts to the rules engines for processing and returns the results
-func getBrePkgs(w http.ResponseWriter, r *http.Request, user *structs.User) {
+func getBrePkgs(w http.ResponseWriter, r *http.Request, sbu *string) {
 
 	// Save to Database
-	brePkgs, err := mongosvc.GetAll(user)
+	brePkgs, err := mongosvc.GetAll(sbu)
 	if err != nil {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		w.Write([]byte(fmt.Sprintf("Unable to retreive : %s", err)))
@@ -142,11 +142,11 @@ func getBrePkgs(w http.ResponseWriter, r *http.Request, user *structs.User) {
 	w.Write([]byte(jsonBrePkgs))
 }
 
-func getBrePkg(w http.ResponseWriter, r *http.Request, user *structs.User) {
+func getBrePkg(w http.ResponseWriter, r *http.Request, sbu *string) {
 
 	params := mux.Vars(r)
 
-	brePkg, err := mongosvc.GetBrePkg(params["pkgCode"], user)
+	brePkg, err := mongosvc.GetBrePkg(params["pkgCode"], sbu)
 	if err != nil {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		w.Write([]byte(fmt.Sprintf("Unable to retreive : %s", err)))
@@ -166,12 +166,12 @@ func getBrePkg(w http.ResponseWriter, r *http.Request, user *structs.User) {
 	w.Write([]byte(jsonBrePkg))
 }
 
-func delBrePkg(w http.ResponseWriter, r *http.Request, user *structs.User) {
+func delBrePkg(w http.ResponseWriter, r *http.Request, sbu *string) {
 
 	params := mux.Vars(r)
 
 	// Save to Database
-	err := mongosvc.Del(params["pkgCode"], user)
+	err := mongosvc.Del(params["pkgCode"], sbu)
 	if err != nil {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		w.Write([]byte(fmt.Sprintf("Unable to Delete : %s", err)))
@@ -183,10 +183,10 @@ func delBrePkg(w http.ResponseWriter, r *http.Request, user *structs.User) {
 	w.Write([]byte("Package Deleted"))
 }
 
-func delBrePkgs(w http.ResponseWriter, r *http.Request, user *structs.User) {
+func delBrePkgs(w http.ResponseWriter, r *http.Request, sbu *string) {
 
 	// Save to Database
-	err := mongosvc.DelAll(user)
+	err := mongosvc.DelAll(sbu)
 	if err != nil {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		w.Write([]byte(fmt.Sprintf("Unable to Delete : %s", err)))
@@ -199,7 +199,7 @@ func delBrePkgs(w http.ResponseWriter, r *http.Request, user *structs.User) {
 }
 
 // Valildate JWT supplied
-func chkJwt(endpoint func(http.ResponseWriter, *http.Request, *structs.User)) http.Handler {
+func chkJwt(endpoint func(http.ResponseWriter, *http.Request, *string)) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		var token string
@@ -229,7 +229,7 @@ func chkJwt(endpoint func(http.ResponseWriter, *http.Request, *structs.User)) ht
 
 			userData := structs.User{UserId: pLoad.UserId, Sbu: pLoad.Sbu}
 
-			endpoint(w, r, &userData)
+			endpoint(w, r, &userData.Sbu)
 		}
 
 	})

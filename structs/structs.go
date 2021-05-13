@@ -1,7 +1,27 @@
 package structs
 
+import (
+	"go/ast"
+)
+
+type AstNode struct {
+	Name       string
+	Expr       ast.Expr
+	ActionExpr []ast.Expr
+}
+
 type BrePkg struct {
-	
+	PkgCode   string `json:"pkgCode"`
+	Cat       string `json:"cat"`
+	Site      string `json:"site"`
+	User      string `json:"user"`
+	ValidFrom string `json:"validFrom"`
+	ValidTo   string `json:"validTo"`
+	AstNodes  []*AstNode
+	Filters   map[string]struct{} `json:"filters"`
+}
+
+type BrePkgReq struct {
 	PkgCode   string    `json:"pkgCode"`
 	Cat       string    `json:"cat"`
 	Site      string    `json:"site"`
@@ -28,4 +48,10 @@ type User struct {
 	Email     string
 	MobileNbr string
 	IpAddress string
+}
+
+// Database table user row struct
+type Dim struct {
+	PkgId string 
+	Data  string
 }
