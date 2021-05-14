@@ -27,14 +27,14 @@ You would want to know how to use the BRE which I have nick named breSvc
 1. The breSvc works with MONG DB. So the first thing you need to do Is to download and install MONGO DB. 
 You can use the following link. See https://www.mongodb.com/1. On completion you need to create database breSvc with a user colletion as shown below:
 
-{"UserId":"hardeep","pswdhash":"999989"}
+                        {"UserId":"hardeep","pswdhash":"999989"}
 
 
 2. Next thing is to clone the repositry found here onto local machine. You can run it at the command prompt, by entring breSvc.exe
 
 3. In the samples folder you can find 2 excel files. 
-   a. breSample.xlsm - Use to test 4 business rules
-   b. breStressTest.xlsm - Use to stress the service with 40 business rules and 10,0000 sku's.
+   (a) breSample.xlsm - Use to test 4 business rules
+   (b) breStressTest.xlsm - Use to stress the service with 40 business rules and 10,0000 sku's.
    
 Works in Progress
 -----------------
