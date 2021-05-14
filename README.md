@@ -19,6 +19,14 @@ Possible Designs Routes
 -----------------------
 At time of this writing, I have only seen one other BRE written in GO. I explored it and found a maze of code. I wanted something more that was like having a tracer to check which rules were processed and dynamic changing of the provided facts and addition of new facts whilst processing the rules. I considered the option to tweak the BRE tool.  However, I decided it would be a lot of work trying to tweak the code and there the learning outcome will not be achieved. And by trainers will be very upset as it wll not be 100% of my work.
 
+How to Use
+----------
+Ok enough of my mumblings. 
+You would want to know how to use the BRE which I have nick named breSvc
+
+Some prerequisites.
+The breSvc works with MONG DB. So the first thing you need to do Is to download and install MONGO DB. 
+You can use the following link. See https://www.mongodb.com/1
 
 
  
