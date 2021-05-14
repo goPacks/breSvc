@@ -36,7 +36,7 @@ func TestParallel(t *testing.T) {
 	// user := structs.User{Sbu: "adidas"}
 
 	// err := LoadBrePkg(pkgCode, &user)
-	// if err != nil {
+	// if err != nil (
 	// 	t.Logf("FailedLoading BRE Package %s", err)
 	// 	t.Fail()
 	// }
