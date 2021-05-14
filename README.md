@@ -24,9 +24,10 @@ How to Use
 Ok enough of my mumblings. 
 You would want to know how to use the BRE which I have nick named breSvc
 
-Some prerequisites.
-The breSvc works with MONG DB. So the first thing you need to do Is to download and install MONGO DB. 
+1. The breSvc works with MONG DB. So the first thing you need to do Is to download and install MONGO DB. 
 You can use the following link. See https://www.mongodb.com/1
+
+2. Next thing is to clone the repositry found here onto local machine. You can run it at the command prompt, by entring breSvc.exe
 
 
  
