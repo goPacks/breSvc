@@ -15,5 +15,10 @@ User Centric - Design Thinking
 For many years, I have observed how merchandisers create promotion schemes. The primary tool they use is Excel where they load the data and slice and dice the data as they require. At the end they copy and paste the data into a host system to deliver the promotions to the front end. 
 Excel is in the comfort zone of merchandisers. It is tool that are most comfortable with. So I decided to work within the comfort zone of the user and use Excel to create and test the rules.
 
+Possible Designs Routes
+-----------------------
+At time of this writing, I have only seen one other BRE written in GO. I explored it and found a maze of code. I wanted something more that was like having a tracer to check which rules were processed and dynamic changing of the provided facts and addition of new facts whilst processing the rules. I considered the option to tweak the BRE tool.  However, I decided it would be a lot of work trying to tweak the code and there the learning outcome will not be achieved. And by trainers will be very upset as it wll not be 100% of my work.
+
+
 
  
